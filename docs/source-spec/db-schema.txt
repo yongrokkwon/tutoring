@@ -1,0 +1,227 @@
+// ===========================================================
+// 광운대 공지사항 크롤러 — DB 스키마 (1단계 MVP)
+// 버전: v1.0
+// 작성일: 2026-05-15
+// 총 12개 테이블
+//
+// 사용법:
+//   1. https://dbdiagram.io 접속
+//   2. 새 다이어그램 생성
+//   3. 이 파일 전체 내용을 좌측 에디터에 붙여넣기
+// ===========================================================
+
+
+// -----------------------------------------------------------
+// [1] 마스터 데이터 — 카테고리
+// 광운대 원본 ID(0~10)를 PK로 사용
+// name 컬럼이 한글 라벨의 source of truth.
+// (messages 의 'ui.label.category.N' 은 동일 값의 사본 — UI 다국어 토대)
+// -----------------------------------------------------------
+Table categories {
+  id         integer [pk, note: '광운대 원본 카테고리 ID (0~10)']
+  name       text    [not null, unique, note: '한글 라벨, source of truth']
+  created_at text    [not null, default: `datetime('now')`]
+
+  Note: '시드 데이터 11행 (id, name): (0,일반), (1,학사), (2,학생), (3,봉사), (4,등록/장학), (5,입학), (6,시설), (7,병무), (8,외부), (9,국제교류), (10,국제학생).'
+}
+
+
+// -----------------------------------------------------------
+// [2] 마스터 데이터 — 알림 주기 모드
+// 한글 라벨은 messages 테이블 참조
+// -----------------------------------------------------------
+Table frequency_modes {
+  id         integer [pk, note: '0=custom, 1=high, 2=medium, 3=low']
+  name       text    [not null, unique, note: '코드 식별자 (custom/high/medium/low)']
+  created_at text    [not null, default: `datetime('now')`]
+
+  Note: '시드 데이터 4행. 한글 라벨은 messages 테이블 참조 (key=ui.label.frequency.N).'
+}
+
+
+// -----------------------------------------------------------
+// [3] 다국어/문구 분리 — 도메인 콘텐츠 (UI 라벨·카테고리명) 전용
+// 키 구조: {대분류}.{중분류}...{식별자}
+//   예: ui.label.category.0, ui.label.frequency.2
+// 변수 치환: Python str.format() 스타일 {name}
+// 알림 템플릿·flash 에러 등 시스템 메시지는 코드 상수로 보유 (DB 미수록).
+// -----------------------------------------------------------
+Table messages {
+  key        text [pk, note: '점 표기 키, 예: ui.label.category.0']
+  template   text [not null, note: '문구 본문, 변수는 {name} 형식']
+  created_at text [not null, default: `datetime('now')`]
+  updated_at text [not null, default: `datetime('now')`]
+
+  Note: '사용자에게 표시되는 도메인 콘텐츠 (UI 라벨·카테고리명) 전용. 알림 템플릿·flash 에러 등 시스템 메시지는 코드 상수. 1단계 시드 15행 (ui.label.category.0~10 + ui.label.frequency.0~3).'
+}
+
+
+// -----------------------------------------------------------
+// [4] 사용자
+// MVP는 1명. 멀티유저 대비 컬럼 자리 미리 마련 (NULL 허용).
+// 채널 둘 다 NULL이면 알림 미발송 (앱 레벨 검증).
+// -----------------------------------------------------------
+Table users {
+  id                  integer [pk, increment]
+  email               text    [unique, note: '3단계 회원가입용. MVP는 NULL.']
+  name                text    [note: '표시용. MVP는 NULL.']
+  discord_webhook_url text    [note: '디스코드 웹훅 URL']
+  kakao_phone         text    [note: '1.5단계 카카오 알림톡용. MVP는 NULL.']
+  created_at          text    [not null, default: `datetime('now')`]
+}
+
+
+// -----------------------------------------------------------
+// [5] 사용자별 설정
+// 1:1 관계 — user_id를 PK로 동시 사용
+// frequency_mode에 FK + CHECK 둘 다 (스키마 자기설명 강화)
+// -----------------------------------------------------------
+Table user_settings {
+  user_id        integer [pk, ref: > users.id]
+  frequency_mode integer [not null, default: 2, ref: > frequency_modes.id,
+                          note: 'CHECK (frequency_mode IN (0,1,2,3)). 기본값 2=medium.']
+  is_active      integer [not null, default: 1,
+                          note: 'CHECK (is_active IN (0,1)). 1=알림 활성.']
+  created_at     text    [not null, default: `datetime('now')`]
+  updated_at     text    [not null, default: `datetime('now')`,
+                          note: '앱 코드가 UPDATE 시 직접 갱신 필요.']
+}
+
+
+// -----------------------------------------------------------
+// [6] 사용자 지정 시각 ("기타" 주기 모드)
+// 1NF 정규화. 같은 사용자가 같은 시각 중복 등록 차단.
+// 시각은 'HH:MM' TEXT. 운영시간 10:00~17:00 범위 CHECK.
+// -----------------------------------------------------------
+Table user_custom_times {
+  id         integer [pk, increment]
+  user_id    integer [not null, ref: > users.id]
+  time_hhmm  text    [not null,
+                      note: "CHECK (time_hhmm GLOB '[0-9][0-9]:[0-9][0-9]' AND time_hhmm >= '10:00' AND time_hhmm <= '17:00')"]
+  created_at text    [not null, default: `datetime('now')`]
+
+  indexes {
+    (user_id, time_hhmm) [unique, note: '사용자별 시각 중복 차단']
+  }
+}
+
+
+// -----------------------------------------------------------
+// [7] 공지 (핵심 테이블)
+// PK = 광운대 원본 DUID
+// 정렬은 코드 레벨: ORDER BY is_pinned DESC,
+//                  MAX(posted_date, modified_date) DESC,
+//                  updated_at DESC, duid DESC
+// (MAX 는 SQLite 의 스칼라 함수 — 2 인자, 집계 아님)
+// content 컬럼은 1단계 미수집 (NULL 허용 자리만 마련)
+// has_attachment 컬럼 없음 — attachments 테이블 행 존재 여부로 판단
+// -----------------------------------------------------------
+Table notices {
+  duid          integer [pk, note: '광운대 원본 DUID, 중복 판별 키']
+  title         text    [not null]
+  category_id   integer [not null, ref: > categories.id]
+  author        text    [not null, note: '작성 부서']
+  posted_date   text    [not null,
+                         note: "'YYYY-MM-DD'. CHECK (posted_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')"]
+  modified_date text    [not null,
+                         note: "'YYYY-MM-DD'. CHECK 동일. 광운대가 모든 공지에 표시한다고 가정."]
+  is_pinned     integer [not null, default: 0,
+                         note: 'CHECK (is_pinned IN (0,1)). 상단 고정 공지.']
+  marked_as_new integer [not null, default: 0,
+                         note: 'CHECK 동일. 광운대 "신규게시글" 마크 (보조 지표, 저장만).']
+  url           text    [not null, note: '원문 URL (절대 URL)']
+  content       text    [note: '본문, 1단계 미수집 (NULL)']
+  created_at    text    [not null, default: `datetime('now')`,
+                         note: 'DB INSERT 시각 = 우리가 처음 발견한 시각']
+  updated_at    text    [not null, default: `datetime('now')`,
+                         note: '수정 공지 처리 시 갱신. 정렬 보조 키.']
+}
+
+
+// -----------------------------------------------------------
+// [8] 첨부 파일
+// 1단계: 광운대 목록에 첨부 마크 있으면 placeholder 행 1개 INSERT
+//        (filename, url 모두 NULL)
+// 2단계: 상세 페이지 파싱 시 placeholder 삭제 후 실제 N행 INSERT
+// 첨부 마크 표시 = EXISTS (SELECT 1 FROM attachments WHERE notice_duid=?)
+// -----------------------------------------------------------
+Table attachments {
+  id          integer [pk, increment]
+  notice_duid integer [not null, ref: > notices.duid,
+                       note: '공지의 PK가 duid라 컬럼명도 notice_duid']
+  filename    text    [note: '1단계는 NULL (placeholder). 2단계에 채움.']
+  url         text    [note: '1단계는 NULL (placeholder). 2단계에 채움.']
+  created_at  text    [not null, default: `datetime('now')`]
+}
+
+
+// -----------------------------------------------------------
+// [9~11] 알림 메타 — 매핑 테이블 3개
+// 코드 식별자(name) 만 보유. 한글 라벨은 1단계에서 코드 상수로 처리 (DB 미참조).
+// 매핑 ID 는 코드 상수와 동기 필요 — 각 상수 정의 위치에 주석 표기.
+// -----------------------------------------------------------
+Table notification_channels {
+  id         integer [pk, note: '1=discord, 2=kakao']
+  name       text    [not null, unique]
+  created_at text    [not null, default: `datetime('now')`]
+}
+
+Table notification_types {
+  id         integer [pk, note: '1=new, 2=modified']
+  name       text    [not null, unique]
+  created_at text    [not null, default: `datetime('now')`]
+}
+
+Table notification_statuses {
+  id         integer [pk, note: '1=success, 2=failed']
+  name       text    [not null, unique]
+  created_at text    [not null, default: `datetime('now')`]
+}
+
+
+// -----------------------------------------------------------
+// [12] 알림 발송 이력
+// 공지별 1행 (한 사이클 N건 묶음 발송이어도 N행)
+// 의도된 예외: created_at 없이 sent_at만 (의미 명확성 우선)
+// -----------------------------------------------------------
+Table notifications {
+  id          integer [pk, increment]
+  user_id     integer [not null, ref: > users.id]
+  notice_duid integer [not null, ref: > notices.duid]
+  channel_id  integer [not null, ref: > notification_channels.id]
+  type_id     integer [not null, ref: > notification_types.id]
+  status_id   integer [not null, ref: > notification_statuses.id]
+  sent_at     text    [not null, default: `datetime('now')`,
+                       note: '발송 시각 (= 행 INSERT 시각)']
+}
+
+
+// ===========================================================
+// 참고 — 시드 데이터 요약 (스키마 외)
+// ===========================================================
+//
+// categories (11행, (id, name)):
+//   (0,일반), (1,학사), (2,학생), (3,봉사), (4,등록/장학), (5,입학),
+//   (6,시설), (7,병무), (8,외부), (9,국제교류), (10,국제학생)
+//
+// frequency_modes (4행):
+//   0='custom', 1='high', 2='medium', 3='low'
+//
+// notification_channels (2행):
+//   1='discord', 2='kakao'
+//
+// notification_types (2행):
+//   1='new', 2='modified'
+//
+// notification_statuses (2행):
+//   1='success', 2='failed'
+//
+// messages (15행, 도메인 콘텐츠 전용):
+//   'ui.label.category.0' ~ 'ui.label.category.10'  (11행) → 카테고리 한글명
+//     ※ categories.name 의 사본 (UI 다국어 토대)
+//   'ui.label.frequency.0' ~ 'ui.label.frequency.3'  (4행) → 주기 모드 한글명
+//     ※ 1단계 영역 4 는 코드 하드코딩, 시드는 미래용으로 박아둠
+//
+// (알림 템플릿·flash 에러·UI 메뉴 라벨 등 시스템 메시지는 모두 코드 상수)
+//
+// ===========================================================

@@ -1,0 +1,43 @@
+{% extends "_base.html" %}
+{% block title %}공지{% endblock %}
+{% block content %}
+<h1>공지</h1>
+
+{% if notices %}
+  <table class="notices">
+    <thead>
+      <tr>
+        <th>카테고리</th>
+        <th>제목</th>
+        <th>작성자</th>
+        <th>일자</th>
+        <th>원문</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for n in notices %}
+        <tr>
+          <td>{{ n['category_name'] }}</td>
+          <td class="notice-title">
+            {%- if n['is_pinned'] %}📌 {% endif -%}
+            {{ n['title'] }}
+            {%- if n['has_attachment'] %} 📎{% endif -%}
+            {%- if n['modified_date'] > n['posted_date'] %} ✏️{% endif -%}
+          </td>
+          <td>{{ n['author'] }}</td>
+          <td>
+            {% if n['posted_date'] == n['modified_date'] -%}
+              작성: {{ n['posted_date'] }}
+            {%- else -%}
+              작성: {{ n['posted_date'] }} / 수정: {{ n['modified_date'] }}
+            {%- endif %}
+          </td>
+          <td><a href="{{ n['url'] }}" target="_blank" rel="noopener">원문</a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="empty">공지가 없습니다. 잠시 후 다시 확인해주세요.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "_base.html" %}
+{% block title %}설정{% endblock %}
+{% block content %}
+<h1>설정</h1>
+
+<form method="post" action="{{ url_for('settings.save') }}">
+  <fieldset>
+    <legend>주기</legend>
+    {% for mode_id, label in [(1,'고빈도 — 15분마다 (10:00~17:00)'),
+                              (2,'중빈도 — 매시 정각 (기본값)'),
+                              (3,'저빈도 — 17:00 1회'),
+                              (0,'기타 — 사용자 지정 시각')] %}
+      <label>
+        <input type="radio" name="frequency_mode"
+               value="{{ frequency_id_to_name[mode_id] }}"
+               {% if settings.frequency_mode == mode_id %}checked{% endif %}>
+        {{ label }}
+      </label>
+    {% endfor %}
+  </fieldset>
+
+  <fieldset>
+    <legend>알림 상태</legend>
+    <label>
+      <input type="checkbox" name="is_active"
+             {% if settings.is_active %}checked{% endif %}>
+      알림 활성화
+    </label>
+  </fieldset>
+
+  <button type="submit">저장</button>
+</form>
+
+<section class="test-send">
+  <h2>발송 테스트</h2>
+  <p>운영시간·알림 설정과 무관하게 최신 공지 1건을 Discord 로 즉시 발송합니다.
+     <code>notifications</code> 이력에는 기록되지 않습니다.</p>
+  <form method="post" action="{{ url_for('settings.test_send') }}">
+    <button type="submit">발송 테스트</button>
+  </form>
+</section>
+
+{% if settings.frequency_mode == 0 %}
+  <section class="custom-times">
+    <h2>사용자 지정 시각</h2>
+    {% if custom_times %}
+      <ul>
+        {% for cid, t in custom_times %}
+          <li>
+            <span class="time">{{ t }}</span>
+            <form method="post" action="{{ url_for('settings.times_delete') }}" style="display:inline">
+              <input type="hidden" name="id" value="{{ cid }}">
+              <button type="submit">삭제</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">등록된 시각이 없습니다</p>
+    {% endif %}
+    <a href="{{ url_for('settings.times_add_grid') }}" class="button">+ 시각 추가</a>
+  </section>
+{% endif %}
+{% endblock %}

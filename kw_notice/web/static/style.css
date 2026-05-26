@@ -1,0 +1,153 @@
+/* 광운대 공지 — 간단한 시각적 요구사항 충족용 CSS (area-3 §10.4) */
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif;
+  margin: 0;
+  padding: 1.5rem;
+  color: #222;
+  background: #fafafa;
+}
+
+/* 네비게이션 — 메뉴 active 시각 구분 */
+.topnav {
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+}
+.topnav a {
+  display: inline-block;
+  margin-right: 1.5rem;
+  padding: 0.25rem 0;
+  color: #555;
+  text-decoration: none;
+}
+.topnav a.active {
+  color: #111;
+  font-weight: bold;
+  border-bottom: 2px solid #333;
+}
+
+/* flash 메시지 — 일반 콘텐츠와 분리 */
+.flash {
+  background: #fff4e5;
+  border: 1px solid #f0c987;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  list-style: none;
+  margin: 0 0 1.5rem;
+}
+.flash li {
+  color: #8a4a00;
+}
+
+/* 빈 상태 안내 — 가운데 정렬 + padding */
+.empty {
+  text-align: center;
+  padding: 1.5rem;
+  color: #888;
+}
+
+/* 테이블 — 행 구분 */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+th, td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+tr:nth-child(even) td {
+  background: #f5f5f5;
+}
+
+/* 부가 마크 (📌·📎·✏️) — 제목과 묶이도록 줄바꿈 방지 (area-3 §10.4) */
+.notice-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 36em;
+}
+table.notices td a {
+  color: #0a58ca;
+  text-decoration: none;
+}
+table.notices td a:hover {
+  text-decoration: underline;
+}
+
+/* 설정 폼 */
+fieldset {
+  border: 1px solid #ddd;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+fieldset label {
+  display: block;
+  padding: 0.25rem 0;
+}
+
+/* 시각 추가 그리드 */
+.time-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  max-width: 24rem;
+  margin: 1rem 0;
+}
+.time-grid .cell {
+  border: 1px solid #ccc;
+  padding: 0.5rem;
+  text-align: center;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.time-grid .cell.registered {
+  background: #eee;
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+.custom-times ul {
+  list-style: none;
+  padding: 0;
+}
+.custom-times li {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.test-send {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #f8f9fa;
+}
+.test-send h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+.test-send p {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 0.5rem 0 0.75rem;
+}
+.test-send code {
+  background: #eee;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.85rem;
+}
+
+.actions { margin-top: 1rem; }
+a.button, button {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #444;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  color: #222;
+}

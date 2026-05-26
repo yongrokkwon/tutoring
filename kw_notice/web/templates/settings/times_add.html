@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+{% block title %}시각 추가{% endblock %}
+{% block content %}
+<h1>시각 선택 (15분 단위)</h1>
+
+<form method="post" action="{{ url_for('settings.times_add_save') }}">
+  <div class="time-grid">
+    {% for t in grid %}
+      <label class="cell {{ 'registered' if t in registered else '' }}">
+        <input type="checkbox" name="time" value="{{ t }}"
+               {% if t in registered %}disabled{% endif %}>
+        {{ t }}
+      </label>
+    {% endfor %}
+  </div>
+
+  <div class="actions">
+    <button type="submit">선택한 시각을 추가</button>
+    <a href="{{ url_for('settings.index') }}" class="button">취소</a>
+  </div>
+</form>
+{% endblock %}
