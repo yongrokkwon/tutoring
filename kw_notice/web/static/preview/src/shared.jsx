@@ -9,7 +9,6 @@ function GlobalNav({ active }) {
       <a href={urls.notices} style={active === "notices" ? { color: "#fff", fontWeight: 600 } : null}>공지</a>
       <a href={urls.settings} style={active === "settings" ? { color: "#fff", fontWeight: 600 } : null}>설정</a>
       <span className="grow" />
-      <a href={urls.settings + "#test-send"}>테스트 발송</a>
     </div>
   );
 }

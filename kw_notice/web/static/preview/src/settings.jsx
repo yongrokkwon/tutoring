@@ -1,10 +1,10 @@
 /* Area 4 — /preview/settings (인터랙티브 + 실 POST). */
 
 const FREQ_OPTIONS = [
-  { id: "high",   label: "고빈도", sub: "15분마다 발송",      range: "10:00 ~ 17:00", count: "29회 / 일" },
-  { id: "medium", label: "중빈도", sub: "매시 정각 (기본값)", range: "10:00 ~ 17:00", count: "8회 / 일" },
-  { id: "low",    label: "저빈도", sub: "하루 한 번",         range: "17:00",         count: "1회 / 일" },
-  { id: "custom", label: "기타",   sub: "사용자 지정 시각",   range: "직접 등록",     count: "최대 29회" },
+  { id: "high",   label: "고빈도", sub: "15분마다",        range: "10:00 ~ 17:00" },
+  { id: "medium", label: "중빈도", sub: "매시 정각",         range: "10:00 ~ 17:00" },
+  { id: "low",    label: "저빈도", sub: "하루 1회",         range: "17:00" },
+  { id: "custom", label: "기타",   sub: "직접 등록",        range: "사용자 지정 시각" },
 ];
 
 function Toggle({ on, onChange }) {
@@ -42,7 +42,7 @@ function FreqOption({ option, checked, onChange }) {
     <label
       style={{
         display: "grid",
-        gridTemplateColumns: "20px 1fr auto",
+        gridTemplateColumns: "20px auto 1fr",
         alignItems: "center",
         gap: 16,
         padding: "20px 24px",
@@ -52,6 +52,7 @@ function FreqOption({ option, checked, onChange }) {
       }}>
       <input
         type="radio"
+        form="cfg-form"
         name="frequency_mode"
         value={option.id}
         checked={checked}
@@ -63,20 +64,19 @@ function FreqOption({ option, checked, onChange }) {
           cursor: "pointer",
         }}
       />
-      <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <span style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-          <span className="ap-body-strong" style={{ fontSize: 18 }}>{option.label}</span>
-          <span className="ap-caption" style={{ color: "var(--ink-48)" }}>{option.sub}</span>
-        </span>
+      <span className="ap-body-strong" style={{ fontSize: 18 }}>{option.label}</span>
+      <span style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+        alignItems: "flex-end",
+        textAlign: "right",
+      }}>
+        <span className="ap-caption" style={{ color: "var(--ink-48)" }}>{option.sub}</span>
         <span className="ap-caption" style={{ color: "var(--ink-80)", fontVariantNumeric: "tabular-nums" }}>
           {option.range}
         </span>
       </span>
-      <span className="ap-caption-s" style={{
-        color: checked ? "var(--action-blue)" : "var(--ink-48)",
-        fontVariantNumeric: "tabular-nums",
-        whiteSpace: "nowrap",
-      }}>{option.count}</span>
     </label>
   );
 }
@@ -197,7 +197,7 @@ function SettingsApp() {
 
   return (
     <PageShell category="설정" activeTab="settings">
-      <div className="ap-page-inner--narrow">
+      <div className="ap-page-inner">
 
         <FlashBanner messages={preload.flashes} errorMap={preload.error_messages} />
 
@@ -209,66 +209,49 @@ function SettingsApp() {
           </p>
         </header>
 
-        <form method="post" action={urls.save}>
+        {/* 빈 form — 아래 input/button 들이 form="cfg-form" 으로 연결.
+            CustomTimesCard 의 내부 삭제 form 과 nested 되지 않게 분리해두는 트릭. */}
+        <form id="cfg-form" method="post" action={urls.save}></form>
 
-          {/* 주기 */}
-          <section style={{ marginBottom: 36 }}>
-            <SectionHeader kicker="주기" title="언제 확인할까요" hint="평일 10:00 – 17:00 안에서만 동작합니다" />
-            <div className="ap-card">
-              {FREQ_OPTIONS.map((o, i) => (
-                <React.Fragment key={o.id}>
-                  <FreqOption option={o} checked={mode === o.id} onChange={setMode} />
-                  {i < FREQ_OPTIONS.length - 1 && (
-                    <div style={{ height: 1, background: "var(--divider-soft)", margin: "0 24px" }} />
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-          </section>
-
-          {/* 알림 상태 */}
-          <section style={{ marginBottom: 36 }}>
-            <SectionHeader kicker="알림 상태" title="알림 활성화" />
-            <div className="ap-card">
-              <label style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 20,
-                padding: "20px 24px",
-                cursor: "pointer",
-              }}>
-                <Toggle on={active} onChange={setActive} />
-                <span style={{ flex: 1 }}>
-                  <div className="ap-body-strong">새 공지가 올라오면 알릴게요</div>
-                  <div className="ap-caption" style={{ color: "var(--ink-80)", marginTop: 3 }}>
-                    꺼두면 DB 에는 기록되지만 Discord 발송은 건너뜁니다.
-                  </div>
-                </span>
-                {/* 폼 전송용 — Toggle 은 button 이라 native 값 없음 */}
-                {active && <input type="hidden" name="is_active" value="1" />}
-              </label>
-            </div>
-          </section>
-
-          {/* 저장 */}
-          <div style={{
-            display: "flex",
-            gap: 12,
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: 12,
-            marginBottom: 52,
-            padding: "0 4px",
-            flexWrap: "wrap",
-          }}>
-            <span className="ap-caption" style={{ color: "var(--ink-48)" }}>
-              변경 사항은 다음 분 (최대 60초) 안에 크롤러에 반영됩니다.
-            </span>
-            <button type="submit" className="ap-btn-primary" style={{ minWidth: 120 }}>저장</button>
+        {/* 알림 상태 — 맨 위 */}
+        <section style={{ marginBottom: 36 }}>
+          <SectionHeader kicker="알림 상태" title="알림 활성화" />
+          <div className="ap-card">
+            <label style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 20,
+              padding: "20px 24px",
+              cursor: "pointer",
+            }}>
+              <Toggle on={active} onChange={setActive} />
+              <span style={{ flex: 1 }}>
+                <div className="ap-body-strong">새 공지가 올라오면 알릴게요</div>
+                <div className="ap-caption" style={{ color: "var(--ink-80)", marginTop: 3 }}>
+                  꺼두면 DB 에는 기록되지만 Discord 발송은 건너뜁니다.
+                </div>
+              </span>
+              {active && <input form="cfg-form" type="hidden" name="is_active" value="1" />}
+            </label>
           </div>
-        </form>
+        </section>
 
-        {/* 사용자 지정 시각 — 기타일 때만. 폼 외부 (자체 form 사용). */}
+        {/* 주기 */}
+        <section style={{ marginBottom: mode === "custom" ? 16 : 36 }}>
+          <SectionHeader kicker="주기" title="언제 확인할까요" hint="평일 10:00 – 17:00 안에서만 동작합니다" />
+          <div className="ap-card">
+            {FREQ_OPTIONS.map((o, i) => (
+              <React.Fragment key={o.id}>
+                <FreqOption option={o} checked={mode === o.id} onChange={setMode} />
+                {i < FREQ_OPTIONS.length - 1 && (
+                  <div style={{ height: 1, background: "var(--divider-soft)", margin: "0 24px" }} />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        </section>
+
+        {/* 사용자 지정 시각 — 기타일 때만, 주기 카드 바로 아래에 인접 배치 */}
         {mode === "custom" && (
           <section style={{ marginBottom: 36 }}>
             <SectionHeader
@@ -279,6 +262,23 @@ function SettingsApp() {
             <CustomTimesCard times={times} urls={urls} />
           </section>
         )}
+
+        {/* 저장 */}
+        <div style={{
+          display: "flex",
+          gap: 12,
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginTop: 12,
+          marginBottom: 52,
+          padding: "0 4px",
+          flexWrap: "wrap",
+        }}>
+          <span className="ap-caption" style={{ color: "var(--ink-48)" }}>
+            변경 사항은 다음 분 (최대 60초) 안에 크롤러에 반영됩니다.
+          </span>
+          <button type="submit" form="cfg-form" className="ap-btn-primary" style={{ minWidth: 120 }}>저장</button>
+        </div>
 
         {/* 발송 테스트 */}
         <section id="test-send">
