@@ -1,0 +1,6 @@
+{% extends "preview/_layout.html" %}
+{% block title %}설정 · 광운대 공지 알리미{% endblock %}
+{% block page_script %}
+<script type="text/babel" src="{{ url_for('static', filename='preview/src/settings.jsx') }}"></script>
+{% endblock %}
+{% block root_component %}SettingsApp{% endblock %}

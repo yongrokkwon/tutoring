@@ -13,8 +13,9 @@ def create_app() -> Flask:
         secret = "dev-secret-key"
     app.secret_key = secret
 
-    from .routes import notices, settings
+    from .routes import notices, preview, settings
     app.register_blueprint(notices.bp)
+    app.register_blueprint(preview.bp)
     app.register_blueprint(settings.bp)
 
     return app
